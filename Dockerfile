@@ -1,7 +1,7 @@
-FROM alpine:3.3
+FROM alpine:3.5
 
 # URL from which to download Elastalert.
-ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/master.zip
+ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v0.1.6.zip
 
 # Directory holding configuration for Elastalert and Supervisor.
 ENV CONFIG_DIR /opt/config
@@ -24,22 +24,25 @@ ENV ELASTICSEARCH_PORT 9200
 
 ENV S3_BUCKET=staging_elastalert_rules
 
-RUN apk add --no-cache bash python python-dev gcc musl-dev openssl py-pip gettext&& \
+# Python has a problem with SSL certificate verification
+ENV PYTHONHTTPSVERIFY=0
+
+RUN apk add --no-cache bash gcc musl-dev openssl gettext  wget python python-dev py-setuptools && \
     apk add --no-cache --virtual=build-dependencies wget ca-certificates && \
     wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python && \
     apk del build-dependencies
 
 WORKDIR /opt
 
-# Install AWS CLI
-RUN pip install awscli
-
 COPY ./config /opt/config
 COPY ./start-elastalert.sh /opt/
 
 RUN \
+# Install AWS CLI
+    pip install awscli &&\
+
 # Download and unpack Elastalert.
-    wget ${ELASTALERT_URL} && \
+    wget --no-check-certificate ${ELASTALERT_URL} && \
     unzip *.zip && \
     rm *.zip &&\
     mv e* ${ELASTALERT_DIRECTORY_NAME}
@@ -51,7 +54,7 @@ RUN python setup.py install && \
     pip install -e . && \
 
 # Install Supervisor.
-    easy_install supervisor && \
+    pip install supervisor && \
 
 # Make the start-script executable.
     chmod +x /opt/start-elastalert.sh && \

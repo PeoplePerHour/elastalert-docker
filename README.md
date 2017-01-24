@@ -24,6 +24,9 @@ You have to first build the container with `make`
 docker run --rm -it -v $(PWD)/:/opt/rules  \
         -e ELASTICSEARCH_HOST=192.168.66.6 \
         peopleperhour/elastalert bash;
+
+$ mv /opt/config/config.yaml /opt/config/config.tpl.yaml
+$ envsubst < /opt/config/config.tpl.yaml > /opt/config/config.yaml
 ```
 You can now run the elastalert-test-rule to validate your rules
 ```
