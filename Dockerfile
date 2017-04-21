@@ -1,7 +1,8 @@
-FROM alpine:3.5
+FROM python:2.7.13-alpine
 
 # URL from which to download Elastalert.
-ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v0.1.11.zip
+ENV ELASTALERT_VERSION 0.1.11
+ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v${ELASTALERT_VERSION}.tar.gz
 
 # Directory holding configuration for Elastalert and Supervisor.
 ENV CONFIG_DIR /opt/config
@@ -27,31 +28,42 @@ ENV S3_BUCKET=staging_elastalert_rules
 # Python has a problem with SSL certificate verification
 ENV PYTHONHTTPSVERIFY=0
 
-RUN apk add --no-cache bash gcc musl-dev openssl gettext  wget python python-dev py-setuptools && \
-    apk add --no-cache --virtual=build-dependencies wget ca-certificates && \
-    wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python && \
-    apk del build-dependencies
-
-WORKDIR /opt
+WORKDIR ${ELASTALERT_HOME}
 
 COPY ./config /opt/config
 COPY ./start-elastalert.sh /opt/
 
-RUN \
-# Install AWS CLI
-    pip install awscli &&\
+RUN apk add --no-cache --virtual=build-dependencies \
+      bash \
+      gcc \
+      musl-dev \
+      openssl \
+      gettext \
+      wget \
+      ca-certificates  \
+      openssl-dev \
+      libffi-dev \
+      build-base &&\
+      apk --update add tar &&\
+    #wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python && \
+
 
 # Download and unpack Elastalert.
-    wget --no-check-certificate ${ELASTALERT_URL} && \
-    unzip *.zip && \
-    rm *.zip &&\
-    mv e* ${ELASTALERT_DIRECTORY_NAME}
+    mkdir -p ${ELASTALERT_HOME} &&\
+    cd ${ELASTALERT_HOME} &&\
+    wget -O elastalert.tar.gz ${ELASTALERT_URL} &&\
+    tar --strip-components=1  -xzf elastalert.tar.gz &&\
+    rm elastalert.tar.gz &&\
+    ls -la &&\
 
-WORKDIR ${ELASTALERT_HOME}
+# Install AWS CLI, in order to download the rules from S3
+    pip install awscli &&\
 
 # Install Elastalert.
-RUN python setup.py install && \
+    python setup.py install && \
     pip install -e . && \
+    pip uninstall twilio --yes && \
+    pip install twilio==6.0.0 &&\
 
 # Install Supervisor.
     pip install supervisor && \
@@ -65,7 +77,7 @@ RUN python setup.py install && \
     mkdir -p ${LOG_DIR} && \
 
 # Copy default configuration files to configuration directory.
-    cp ${ELASTALERT_HOME}/supervisord.conf.example ${ELASTALERT_SUPERVISOR_CONF} && \
+    cp supervisord.conf.example ${ELASTALERT_SUPERVISOR_CONF} && \
 
 
 # Elastalert Supervisor configuration:
@@ -76,13 +88,19 @@ RUN python setup.py install && \
     # Modify the start-command.
     sed -i -e"s|python elastalert.py|python -m elastalert.elastalert --config ${ELASTALERT_CONFIG}|g" ${ELASTALERT_SUPERVISOR_CONF} && \
 
-# Clean up.
-    apk del python-dev && \
-    apk del musl-dev && \
-    apk del gcc && \
-
 # Add Elastalert to Supervisord.
-    supervisord -c ${ELASTALERT_SUPERVISOR_CONF}
+    supervisord -c ${ELASTALERT_SUPERVISOR_CONF} &&\
+
+# Clean up.
+    apk del python-dev \
+            musl-dev \
+            gcc \
+            py-setuptools \
+            openssl-dev \
+            libffi-dev \
+            tar build-base && \
+
+     rm -rf /var/cache/apk/*
 
 # Define mount points.
 VOLUME [ "${CONFIG_DIR}", "${RULES_DIRECTORY}", "${LOG_DIR}"]
