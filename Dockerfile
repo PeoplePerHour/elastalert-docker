@@ -1,7 +1,7 @@
 FROM python:2.7.13-alpine
 
 # URL from which to download Elastalert.
-ENV ELASTALERT_VERSION 0.1.11
+ENV ELASTALERT_VERSION 0.1.6
 ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v${ELASTALERT_VERSION}.tar.gz
 
 # Directory holding configuration for Elastalert and Supervisor.
