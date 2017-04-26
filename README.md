@@ -21,7 +21,7 @@ make
 You have to first build the container with `make`
 
 ```
-docker run --rm -it -v $(pwd)/:/opt/rules  \
+docker run --rm -it -v $(PWD)/:/opt/rules  \
         -e ELASTICSEARCH_HOST=192.168.66.6 \
         peopleperhour/elastalert bash;
 
