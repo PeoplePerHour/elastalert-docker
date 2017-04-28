@@ -1,7 +1,8 @@
 FROM alpine:3.5
 
 # URL from which to download Elastalert.
-ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v0.1.6.zip
+ENV ELASTALERT_VERSION 0.1.6
+ENV ELASTALERT_URL https://github.com/Yelp/elastalert/archive/v${ELASTALERT_VERSION}.zip
 
 # Directory holding configuration for Elastalert and Supervisor.
 ENV CONFIG_DIR /opt/config
@@ -34,7 +35,7 @@ RUN apk add --no-cache bash gcc musl-dev openssl gettext  wget python python-dev
 
 WORKDIR /opt
 
-COPY ./config /opt/config
+COPY ./config ${CONFIG_DIR}
 COPY ./start-elastalert.sh /opt/
 
 RUN \
@@ -76,13 +77,15 @@ RUN python setup.py install && \
     # Modify the start-command.
     sed -i -e"s|python elastalert.py|python -m elastalert.elastalert --config ${ELASTALERT_CONFIG}|g" ${ELASTALERT_SUPERVISOR_CONF} && \
 
+# Add Elastalert to Supervisord.
+    supervisord -c ${ELASTALERT_SUPERVISOR_CONF} && \
+
 # Clean up.
     apk del python-dev && \
     apk del musl-dev && \
     apk del gcc && \
+    rm -rf /var/cache/apk/*
 
-# Add Elastalert to Supervisord.
-    supervisord -c ${ELASTALERT_SUPERVISOR_CONF}
 
 # Define mount points.
 VOLUME [ "${CONFIG_DIR}", "${RULES_DIRECTORY}", "${LOG_DIR}"]
