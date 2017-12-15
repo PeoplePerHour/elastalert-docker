@@ -41,6 +41,7 @@ COPY ./start-elastalert.sh /opt/
 RUN \
 # Install AWS CLI
     pip install awscli &&\
+    pip install -U setuptools &&\
 
 # Download and unpack Elastalert.
     wget --no-check-certificate ${ELASTALERT_URL} && \
